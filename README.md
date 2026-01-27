@@ -14,26 +14,33 @@ docker部署
 项目id、git hash放在config
 
 + 提交的步骤
-前提是git是clean的
+前提是git是clean的(靠自觉吧,反正只取git hash,`git rev-parse HEAD`,=`git log --pretty=format:"%H" -1`)
 要发送的东西 工程文件一共4个json, record可以考虑把history覆盖成`[]`
 每个有快照的节点提供的索引缓存和报告等的机制->文件本体和机制本体, 机制只提取用到的部分
 git 的当前状态, hash url branch
 用户id
-父提交hash
-用工程文件算一个hash
+
+没有合并提交(只有合并拉取)
+提交时快照状态总是进行完整覆盖. 以及会制作一个hash map `{'a.bin':'[hash of a.bin]'}`, 然后a.bin会以`[hash of a.bin]`为文件名存在objs里
+在数据库里就是`[git hash]:{'hash map',工程文件一共4个json}`
 
 + 展示的步骤
-整体的展示, 展示类似git节点图的东西
+整体的展示, 提交时间线的hash图
 单个hash的展示, 用iframe引入node, 正好继承了用message通信
 
 + 拉取的步骤
 覆盖拉取时全覆盖
 合并拉取时把hash塞到父hash数组里, 以被拉取者为优先合并所有有效快照, 约等于全覆盖, 仅仅目标快照不存在, 己方快照存在时保留. 前提是节点图本体完全一致(正常是要先git merge做到这一点后, 在把这套系统merge)
 
-?放弃hash全面使用git hash, 否, 提供用git hash对应快照hash的手段
+全面使用git hash, somehow 就是一种git release
 
 目标先git checkout xx
 在拉取xx就完全完全复原
+
+服务器里维护这些东西, 数据库用mongodb还是sqlite要再想想
++ 文件夹 objs -> hash命名的数据对象
++ 数据映射 git hash -> hash map, 工程文件一共4个json, 日期
++ 数据映射 hash -> 最后一次使用这个hash的文件名
 
 ### 指令
 

@@ -21,8 +21,10 @@ git 的当前状态, hash url branch
 用户id
 
 没有合并提交(只有合并拉取)
-提交时快照状态总是进行完整覆盖. 以及会制作一个hash map `{'a.bin':'[hash of a.bin]'}`, 然后a.bin会以`[hash of a.bin]`为文件名存在objs里
-在数据库里就是`[git hash]:{'hash map',工程文件一共4个json}`
+提交时快照状态总是进行完整覆盖. 以及会制作一个hash map `{'path/to/a.bin':'[hash of a.bin]'}`, 然后a.bin会以`[hash of a.bin]`为文件名存在objs里
+在数据库里就是`[git hash]:{time,'hash map',工程文件一共4个json}`
+
+上传一个想要进数据库的状态后, 返回一个去除掉已有文件的列表, 再提交一次状态+文件的post. 这次会真进数据库和写文件. 先写文件, 都成功后最后写数据库
 
 + 展示的步骤
 整体的展示, 提交时间线的hash图
@@ -40,7 +42,9 @@ git 的当前状态, hash url branch
 服务器里维护这些东西, 数据库用mongodb还是sqlite要再想想
 + 文件夹 objs -> hash命名的数据对象
 + 数据映射 git hash -> hash map, 工程文件一共4个json, 日期
-+ 数据映射 hash -> 最后一次使用这个hash的文件名
++ 数据映射 hash -> 每次使用这个hash的git hash和文件名
+
+? .. 要怎么处理, 上传下载没问题, 在线显示时不行. 引入一个/parent/的设定, 在flask里替换成..
 
 ### 指令
 

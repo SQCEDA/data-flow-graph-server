@@ -6,9 +6,9 @@
 ## 演示版
 
 加个演示版本的server。先只提交快照和节点。同时思考怎么约定和提交报告
+filenames.json {'filename':[files]}
 
-python server + mongodb
-docker部署
+权限管理先不做
 
 用户和认证放在settings  
 项目id、git hash放在config
@@ -39,12 +39,43 @@ git 的当前状态, hash url branch
 目标先git checkout xx
 在拉取xx就完全完全复原
 
-服务器里维护这些东西, 数据库用mongodb还是sqlite要再想想
+服务器里维护这些东西, 数据库用mongodb还是sqlite要再想想, 用mongodb省事, sqlite轻量而且不困难
 + 文件夹 objs -> hash命名的数据对象
-+ 数据映射 git hash -> hash map, 工程文件一共4个json, 日期
-+ 数据映射 hash -> 每次使用这个hash的git hash和文件名
++ 数据映射 git hash -> hash map, 工程文件一共4个json, 日期, "user/projectname", commiter
++ 数据映射 file hash -> 每次使用这个hash的git hash和文件名
 
 ? .. 要怎么处理, 上传下载没问题, 在线显示时不行. 引入一个/parent/的设定, 在flask里替换成..
+
+提交文件的获取:
+filenames或者写死在node里
+
+前端: 用iframe引入data-flow-graph-node
+
+### server
+
+server后端: server层 + 数据库包装层
+
+应对上传下载的:
+
+/checkFile [hashs] -> [hashs] 返回已包含的hashs
+
+/submitFile {hashs:bin64} -> [hashs] 返回成功写入到了文件的hashs
+
+/submitRelease {git hash, hash map, 工程文件一共4个json, 日期, "user/projectname", commiter} -> {success,cover,files} 返回是否成功, 是覆盖还是新条目, 文件缺失
+
+/downloadFile [hashs] -> {hashs:bin64} null代表不存在
+
+/queryRelease {git hash,"user/projectname"} -> {git hash, hash map, 工程文件一共4个json, 日期, "user/projectname", commiter} null代表不存在
+
+应对前端的:
+
+GET /static/path
+GET /user/projectname/githash/path
+
+/query null -> ["user/projectname"]
+
+/query user/projectname -> [git hash]
+
 
 ### 指令
 

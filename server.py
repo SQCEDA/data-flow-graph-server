@@ -9,15 +9,13 @@ import base64
 from flask import Flask, request, Response, abort
 import mimetypes
 
-import db
+import db as db_module
 
-class g:
+class c:
     ip='0.0.0.0'
     port=13496
     error_format='error format'
-    db=db.DB()
-
-g.db.create_tables()
+    db=db_module.DB()
 
 def p(s):
     print(s)
@@ -79,12 +77,29 @@ def checkFile():
     data = request.get_data()
     data = str(data, encoding = 'utf-8')
     try:
-        filehashs=json.loads(data)
-        ret=g.db.find_matching_filehash(filehashs)
+        filehashes=json.loads(data)
+        ret={'ret':'','hashes': c.db.find_matching_filehash(filehashes)}
     except Exception as e:
-        return {'ret':g.error_format}
+        return {'ret':c.error_format,'error':str(e)}
     return ret
+
+@app.route('/submitFile', methods=['POST'])
+def submitFile():
+    data = request.get_data()
+    data = str(data, encoding = 'utf-8')
+    try:
+        filehash64Map=json.loads(data)
+        filehashes=[]
+        for hashk in filehash64Map:
+            filehashes.append(hashk)
+            filehash64=filehash64Map[hashk]
+            with open(os.path.join('./data/objs/', hashk + '.bin'), 'wb') as f:
+                f.write(base64.b64decode(filehash64))
+        c.db.add_filehash(filehashes)
+    except Exception as e:
+        return {'ret':c.error_format,'error':str(e)}
+    return {'ret':''}
 
 if __name__ == '__main__':
     p('服务已启动...')
-    app.run(host = g.ip, port = g.port, debug = False)
+    app.run(host = c.ip, port = c.port, debug = False)

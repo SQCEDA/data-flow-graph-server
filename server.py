@@ -100,6 +100,64 @@ def submitFile():
         return {'ret':c.error_format,'error':str(e)}
     return {'ret':''}
 
+# /downloadFile [hashes] -> {hashes:bin64} null代表不存在
+@app.route('/downloadFile', methods=['POST'])
+def downloadFile():
+    data = request.get_data()
+    data = str(data, encoding = 'utf-8')
+    try:
+        filehashes=json.loads(data)
+        retmap={}
+        for hashk in filehashes:
+            filepath=os.path.join('./data/objs/', hashk + '.bin')
+            if os.path.isfile(filepath):
+                with open(filepath, 'rb') as f:
+                    filebin=f.read()
+                    filebin64=base64.b64encode(filebin)
+                    retmap[hashk]=str(filebin64, encoding='utf-8')
+            else:
+                retmap[hashk]=None
+        return {'ret':'','files': retmap}
+    except Exception as e:
+        return {'ret':c.error_format,'error':str(e)}
+
+@app.route('/deleteRelease', methods=['POST'])
+def deleteRelease():
+    data = request.get_data()
+    data = str(data, encoding = 'utf-8')
+    try:
+        info=json.loads(data)
+        count=c.db.delete_release(info['githash'], info['owner'], info['projectname'])
+    except Exception as e:
+        return {'ret':c.error_format,'error':str(e)}
+    return {'ret':'', 'count': count}
+
+@app.route('/queryRelease', methods=['POST'])
+def queryRelease():
+    data = request.get_data()
+    data = str(data, encoding = 'utf-8')
+    try:
+        info=json.loads(data)
+        rows=c.db.find_exact_match(info['githash'], info['owner'], info['projectname'])
+        retlist=[]
+        for row in rows:
+            retlist.append(row)
+    except Exception as e:
+        return {'ret':c.error_format,'error':str(e)}
+    return {'ret':'', 'releases': retlist}
+
+#/submitRelease {git hash, hash map, 工程文件一共4个json, 日期, owner, projectname, commiter} -> {count,files} 覆盖的条目数, 文件缺失
+@app.route('/submitRelease', methods=['POST'])
+def submitRelease():
+    data = request.get_data()
+    data = str(data, encoding = 'utf-8')
+    try:
+        info=json.loads(data)
+        count,files=c.db.submit_release(info['githash'], info['filehashmap'], info['files'], info['date'], info['owner'], info['projectname'], info['commiter'])
+    except Exception as e:
+        return {'ret':c.error_format,'error':str(e)}
+    return {'ret':'', 'count': count, 'files': files}
+
 if __name__ == '__main__':
     p('服务已启动...')
     app.run(host = c.ip, port = c.port, debug = False)

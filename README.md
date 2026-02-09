@@ -61,15 +61,15 @@ server后端: server层 + 数据库包装层
 
 /submitFile {hashes:bin64} -> {} 
 
-/submitRelease {git hash, hash map, 工程文件一共4个json, 日期, owner, projectname, commiter} -> {cover,files} 返回是覆盖还是新条目, 文件缺失
-
 /downloadFile [hashes] -> {hashes:bin64} null代表不存在
 
-/queryRelease {git hash,owner, projectname} -> {git hash, hash map, 工程文件一共4个json, 日期, owner, projectname, commiter} null代表不存在
+/deleteRelease {git hash, owner, projectname} -> {count} 返回删除的数量
+
+/queryRelease {git hash,owner, projectname} -> [{git hash, hash map, 工程文件一共4个json, 日期, owner, projectname, commiter}]
+
+/submitRelease {git hash, hash map, 工程文件一共4个json, 日期, owner, projectname, commiter} -> {count,files} 覆盖的条目数, 文件缺失
 
 应对前端的:
-
-/deleteRelease {git hash, owner, projectname} -> {count} 返回删除的数量
 
 GET /static/path
 GET /owner/projectname/githash/path

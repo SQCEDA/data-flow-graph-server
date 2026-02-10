@@ -127,7 +127,7 @@ def deleteRelease():
     data = str(data, encoding = 'utf-8')
     try:
         info=json.loads(data)
-        count=c.db.delete_release(info['githash'], info['owner'], info['projectname'])
+        count=c.db.delete_release(info['githash'], info['projectname'], info['owner'])
     except Exception as e:
         return {'ret':c.error_format,'error':str(e)}
     return {'ret':'', 'count': count}
@@ -138,7 +138,7 @@ def queryRelease():
     data = str(data, encoding = 'utf-8')
     try:
         info=json.loads(data)
-        rows=c.db.find_exact_match(info['githash'], info['owner'], info['projectname'])
+        rows=c.db.find_exact_match(info['githash'], info['projectname'], info['owner'])
         retlist=[]
         for row in rows:
             retlist.append(row)
@@ -153,7 +153,7 @@ def submitRelease():
     data = str(data, encoding = 'utf-8')
     try:
         info=json.loads(data)
-        count,files=c.db.submit_release(info['githash'], info['filehashmap'], info['files'], info['date'], info['owner'], info['projectname'], info['commiter'])
+        count,files=c.db.submit_release(info['githash'], info['projectname'], info['owner'], info['author'], info['filehashmap'], info['projectfile'], info['time'])
     except Exception as e:
         return {'ret':c.error_format,'error':str(e)}
     return {'ret':'', 'count': count, 'files': files}

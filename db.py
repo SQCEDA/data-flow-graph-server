@@ -13,9 +13,9 @@ class DB:
         cursor = conn.cursor()
 
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS githash (
+        CREATE TABLE IF NOT EXISTS githashdb (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            hashstr TEXT NOT NULL,
+            githash TEXT NOT NULL,
             projectname TEXT NOT NULL,
             owner TEXT NOT NULL,
             author TEXT NOT NULL,
@@ -28,9 +28,9 @@ class DB:
         """)
         
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS filehash (
+        CREATE TABLE IF NOT EXISTS filehashdb (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            hashstr TEXT UNIQUE NOT NULL,
+            filehash TEXT UNIQUE NOT NULL,
             fileref JSON DEFAULT '[]',
             time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -48,11 +48,11 @@ class DB:
         placeholders = ','.join(['?' for _ in input_list])
         
         # 执行查询：查找表中存在的所有匹配项
-        query = f"SELECT * FROM filehash WHERE hashstr IN ({placeholders})"
+        query = f"SELECT * FROM filehashdb WHERE filehash IN ({placeholders})"
         cursor.execute(query, input_list)
         
         # 获取查询结果
-        results = {row[1]:row[2] for row in cursor.fetchall()}
+        results = {row[1]:json.loads(row[2]) for row in cursor.fetchall()}
 
         conn.close()
 
@@ -67,7 +67,7 @@ class DB:
         placeholders = ','.join(['?' for _ in input_list])
         
         # 执行查询：查找表中存在的所有匹配项
-        query = f"SELECT hashstr FROM filehash WHERE hashstr IN ({placeholders})"
+        query = f"SELECT filehash FROM filehashdb WHERE filehash IN ({placeholders})"
         cursor.execute(query, input_list)
         
         # 获取查询结果
@@ -85,7 +85,7 @@ class DB:
     
         try:
             cursor.executemany(
-                "INSERT OR IGNORE INTO filehash (hashstr) VALUES (?)",
+                "INSERT OR IGNORE INTO filehashdb (filehash) VALUES (?)",
                 data
             )
             conn.commit()
@@ -103,7 +103,7 @@ class DB:
     
         try:
             cursor.executemany(
-                "INSERT OR REPLACE INTO filehash (hashstr, fileref) VALUES (?, ?)",
+                "INSERT OR REPLACE INTO filehashdb (filehash, fileref) VALUES (?, ?)",
                 data
             )
             conn.commit()
@@ -115,12 +115,12 @@ class DB:
 
     def find_exact_match(
         self,
-        hashstr: str,
+        githash: str,
         projectname: str,
         owner: str
     ) -> List[Dict[str, Any]]:
         """
-        查询 hashstr, projectname, owner 三个字段都完全匹配的条目
+        查询 githash, projectname, owner 三个字段都完全匹配的条目
         返回匹配的条目数组
         """
         conn = sqlite3.connect(self.db_path)
@@ -128,14 +128,14 @@ class DB:
         cursor = conn.cursor()
         
         query = """
-        SELECT * FROM githash 
-        WHERE hashstr = ? 
+        SELECT * FROM githashdb 
+        WHERE githash = ? 
         AND projectname = ? 
         AND owner = ?
         ORDER BY id
         """
         
-        cursor.execute(query, (hashstr, projectname, owner))
+        cursor.execute(query, (githash, projectname, owner))
         
         # 获取结果并转换为字典列表
         columns = [desc[0] for desc in cursor.description]
@@ -156,7 +156,7 @@ class DB:
 
     def insert_githash_full(
         self,
-        hashstr: str,
+        githash: str,
         projectname: str,
         owner: str,
         author: str,
@@ -168,7 +168,7 @@ class DB:
         插入完整条目，所有字段都不能为空
         
         Args:
-            hashstr: 哈希字符串
+            githash: 哈希字符串
             projectname: 项目名称
             owner: 所有者
             author: 作者
@@ -187,10 +187,10 @@ class DB:
         
         try:
             cursor.execute("""
-                INSERT INTO githash 
-                (hashstr, projectname, owner, author, filehashmap, projectfile, time)
+                INSERT INTO githashdb
+                (githash, projectname, owner, author, filehashmap, projectfile, time)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (hashstr, projectname, owner, author, 
+            """, (githash, projectname, owner, author, 
                 filehashmap_json, projectfile_json, time))
             
             conn.commit()
@@ -224,7 +224,7 @@ class DB:
         placeholders = ','.join(['?' for _ in id_list])
         
         # 构建删除语句
-        query = f"DELETE FROM githash WHERE id IN ({placeholders})"
+        query = f"DELETE FROM githashdb WHERE id IN ({placeholders})"
         
         try:
             cursor.execute(query, id_list)
@@ -238,17 +238,17 @@ class DB:
             conn.close()
     
     def delete_release(self,
-        hashstr: str,
+        githash: str,
         projectname: str,
         owner: str) -> int:
         """
-        查询 hashstr, projectname, owner 三个字段都完全匹配的条目
+        查询 githash, projectname, owner 三个字段都完全匹配的条目
         删除条目以及在filehash中删除对应的记录
         """
 
         # 查询匹配的条目
         rows = self.find_exact_match(
-            hashstr=hashstr,
+            githash=githash,
             projectname=projectname,
             owner=owner
         )
@@ -267,11 +267,11 @@ class DB:
             if filehashes_to_delete:
                 records = self.query_filehash([item[1] for item in filehashes_to_delete])
                 for item in filehashes_to_delete:
-                    hashstr = item[1]
-                    if hashstr in records:
-                        fileref = item[0]
-                        if fileref in records[hashstr]:
-                            records[hashstr].remove(fileref)
+                    filehash = item[1]
+                    if filehash in records:
+                        fileref = f'{owner}/{projectname}/{githash}/{item[0]}'
+                        if fileref in records[filehash]:
+                            records[filehash].remove(fileref)
                 self.set_filehash(records)
 
             conn = sqlite3.connect(self.db_path)
@@ -280,7 +280,7 @@ class DB:
             # 删除 githash 记录
             ids_to_delete = [row['id'] for row in rows]
             placeholders = ','.join(['?' for _ in ids_to_delete])
-            cursor.execute(f"DELETE FROM githash WHERE id IN ({placeholders})", ids_to_delete)
+            cursor.execute(f"DELETE FROM githashdb WHERE id IN ({placeholders})", ids_to_delete)
 
             deleted_count = cursor.rowcount
             conn.commit()
@@ -293,7 +293,7 @@ class DB:
     
     def submit_release(
         self,
-        hashstr: str,
+        githash: str,
         projectname: str,
         owner: str,
         author: str,
@@ -304,21 +304,22 @@ class DB:
         """
         提交发布，先检查filehashmap中的hash是否都存在于filehash表中，如果有不存在的hash，则返回错误和缺失的hash列表；如果都存在，则删除原有的release（如果有的话），并插入新的release
         """
-        hashes=filehashmap.values()
+        hashes=list(filehashmap.values())
         had=self.find_matching_filehash(hashes)
         missing_hashes = set(hashes) - set(had)
         if missing_hashes:
             return 0, list(missing_hashes)
-        count=self.delete_release(hashstr, projectname, owner)
+        count=self.delete_release(githash, projectname, owner)
 
         records = self.query_filehash(list(filehashmap.values()))
-        for fileref,hashstr in filehashmap.items():
-            if fileref not in records[hashstr]:
-                records[hashstr].append(fileref)
+        for fileref,filehash in filehashmap.items():
+            fileref=f'{owner}/{projectname}/{githash}/{fileref}'
+            if fileref not in records[filehash]:
+                records[filehash].append(fileref)
         self.set_filehash(records)
 
         self.insert_githash_full(
-            hashstr=hashstr,
+            githash=githash,
             projectname=projectname,
             owner=owner,
             author=author,
@@ -334,17 +335,25 @@ if __name__ == "__main__":
     db.init_db()
     import sys
     if '-t1' in sys.argv:
-        db.insert_githash_full(
-            hashstr="testhash",
+        db.add_filehash(["hash1", "hash2", "hash3"])
+        db.submit_release(
+            githash="testhash",
             projectname="testproject",
             owner="testowner",
-            author="testauthor1",
+            author="testauthor",
             filehashmap={"file1": "hash1", "file2": "hash2"},
-            projectfile={"file1": "path/to/file1", "file2": "path/to/file2"},
+            projectfile={"aa": {"aa":1}, "abc": {"abc":2}},
             time="2024-06-01 12:00:00"
         )
         print(db.find_exact_match("testhash", "testproject", "testowner"))
     if '-t2' in sys.argv:
+        print(db.delete_release(
+            githash="testhash",
+            projectname="testproject",
+            owner="testowner"
+        ))
+        print(db.find_exact_match("testhash", "testproject", "testowner"))
+    if '-t3' in sys.argv:
         db.add_filehash(["hash1", "hash2", "hash3"])
         print(db.query_filehash(["hash1", "hash3", "hash1", "hash4"]))
         print(db.find_matching_filehash(["hash3", "hash2", "hash3", "hash4"]))
@@ -352,7 +361,7 @@ if __name__ == "__main__":
         # clear db
         conn = sqlite3.connect(db.db_path)
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM githash")
-        cursor.execute("DELETE FROM filehash")
+        cursor.execute("DELETE FROM githashdb")
+        cursor.execute("DELETE FROM filehashdb")
         conn.commit()
         conn.close()

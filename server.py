@@ -55,6 +55,39 @@ def get_file(path):
         content = f.read()
     return content 
 
+def parse_pagination(args):
+    default_size = 20
+    try:
+        page = int(args.get('page')) if args.get('page') is not None else None
+    except:
+        page = None
+    try:
+        size = int(args.get('size')) if args.get('size') is not None else default_size
+    except:
+        size = default_size
+    try:
+        start = int(args.get('start')) if args.get('start') is not None else None
+    except:
+        start = None
+    try:
+        end = int(args.get('end')) if args.get('end') is not None else None
+    except:
+        end = None
+
+    if page is not None and page > 0:
+        limit = size if size > 0 else default_size
+        offset = (page - 1) * limit
+    else:
+        if start is None:
+            start = 0
+        if end is None:
+            end = start + default_size - 1
+        if end < start:
+            end = start
+        limit = end - start + 1
+        offset = start
+    return offset, limit
+
 @app.route('/', methods=['GET'])
 def root():
     return static_file('index.html')
@@ -157,6 +190,67 @@ def submitRelease():
     except Exception as e:
         return {'ret':c.error_format,'error':str(e)}
     return {'ret':'', 'count': count, 'files': files}
+
+@app.route('/api/owners', methods=['GET'])
+def listOwners():
+    try:
+        owners = c.db.list_owners()
+        return {'ret':'', 'owners': owners, 'total': len(owners)}
+    except Exception as e:
+        return {'ret':c.error_format,'error':str(e)}
+
+@app.route('/api/projects', methods=['GET'])
+def listProjects():
+    try:
+        offset, limit = parse_pagination(request.args)
+        total = c.db.count_projects_global()
+        projects = c.db.list_projects_global(offset, limit)
+        return {'ret':'', 'projects': projects, 'total': total, 'offset': offset, 'limit': limit}
+    except Exception as e:
+        return {'ret':c.error_format,'error':str(e)}
+
+@app.route('/api/owners/<owner>/projects', methods=['GET'])
+def listProjectsByOwner(owner):
+    try:
+        offset, limit = parse_pagination(request.args)
+        total = c.db.count_projects_by_owner(owner)
+        projects = c.db.list_projects_by_owner(owner, offset, limit)
+        return {'ret':'', 'projects': projects, 'total': total, 'offset': offset, 'limit': limit}
+    except Exception as e:
+        return {'ret':c.error_format,'error':str(e)}
+
+@app.route('/api/projects/<owner>/<projectname>/commits', methods=['GET'])
+def listCommits(owner, projectname):
+    try:
+        offset, limit = parse_pagination(request.args)
+        total = c.db.count_commits(owner, projectname)
+        commits = c.db.list_commits(owner, projectname, offset, limit)
+        return {'ret':'', 'commits': commits, 'total': total, 'offset': offset, 'limit': limit}
+    except Exception as e:
+        return {'ret':c.error_format,'error':str(e)}
+
+@app.route('/raw/<owner>/<projectname>/<githash>/<path:filepath>', methods=['GET'])
+def serveRaw(owner, projectname, githash, filepath):
+    try:
+        releases = c.db.find_exact_match(githash, projectname, owner)
+        if not releases:
+            abort(404)
+        release = releases[0]
+        filehashmap = release.get('filehashmap', {})
+        if filepath not in filehashmap:
+            abort(404)
+        hashk = filehashmap[filepath]
+        binpath = os.path.join('./data/objs/', hashk + '.bin')
+        if not os.path.isfile(binpath):
+            abort(404)
+        content = get_file(binpath)
+        mimetype = get_mimetype(filepath)
+        response = Response(content, mimetype=mimetype)
+        if request.args.get('download') == '1':
+            response.headers['Content-Disposition'] = 'attachment; filename="%s"' % os.path.basename(filepath)
+        return response
+    except Exception as e:
+        return {'ret':c.error_format,'error':str(e)}
 
 if __name__ == '__main__':
     p('服务已启动...')

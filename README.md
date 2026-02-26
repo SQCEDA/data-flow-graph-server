@@ -6,6 +6,7 @@
 ## 演示版
 
 加个演示版本的server。先只提交快照和节点。同时思考怎么约定和提交报告
+fgProject.filenames ->
 filenames.json {'filename':[files]}
 
 权限管理先不做

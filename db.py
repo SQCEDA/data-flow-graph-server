@@ -2,6 +2,12 @@ import sqlite3
 import json
 from typing import List, Dict, Any
 
+def _decode_json_field(row_dict: Dict[str, Any], key: str):
+    val = row_dict.get(key)
+    if val:
+        row_dict[key] = json.loads(val)
+    return row_dict
+
 class DB:
     def __init__(self, db_path: str = "./data/data.db"):
         
@@ -143,11 +149,8 @@ class DB:
         
         for row in cursor.fetchall():
             row_dict = dict(zip(columns, row))
-            # 解析 JSON 字段
-            if 'filehashmap' in row_dict and row_dict['filehashmap']:
-                row_dict['filehashmap'] = json.loads(row_dict['filehashmap'])
-            if 'projectfile' in row_dict and row_dict['projectfile']:
-                row_dict['projectfile'] = json.loads(row_dict['projectfile'])
+            _decode_json_field(row_dict, 'filehashmap')
+            _decode_json_field(row_dict, 'projectfile')
             results.append(row_dict)
 
         conn.close()
@@ -328,6 +331,114 @@ class DB:
             time=time
         )
         return count, []
+
+    def list_owners(self) -> List[str]:
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT DISTINCT owner FROM githashdb ORDER BY owner")
+        owners = [row[0] for row in cursor.fetchall()]
+        conn.close()
+        return owners
+
+    def _rows_to_releases(self, rows: List[sqlite3.Row]) -> List[Dict[str, Any]]:
+        columns = list(rows[0].keys()) if rows else []
+        releases = []
+        for row in rows:
+            row_dict = {col: row[col] for col in columns}
+            _decode_json_field(row_dict, 'filehashmap')
+            _decode_json_field(row_dict, 'projectfile')
+            releases.append(row_dict)
+        return releases
+
+    def count_projects_global(self) -> int:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM (SELECT owner, projectname FROM githashdb GROUP BY owner, projectname)")
+        total = cursor.fetchone()[0]
+        conn.close()
+        return total
+
+    def list_projects_global(self, offset: int, limit: int) -> List[Dict[str, Any]]:
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT owner, projectname, githash, author, time FROM (
+                SELECT owner, projectname, githash, author, time,
+                       ROW_NUMBER() OVER (PARTITION BY owner, projectname ORDER BY time DESC) AS rn
+                FROM githashdb
+            ) WHERE rn = 1
+            ORDER BY time DESC
+            LIMIT ? OFFSET ?
+            """,
+            (limit, offset)
+        )
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+
+    def count_projects_by_owner(self, owner: str) -> int:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT COUNT(*) FROM (SELECT projectname FROM githashdb WHERE owner = ? GROUP BY projectname)",
+            (owner,)
+        )
+        total = cursor.fetchone()[0]
+        conn.close()
+        return total
+
+    def list_projects_by_owner(self, owner: str, offset: int, limit: int) -> List[Dict[str, Any]]:
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT owner, projectname, githash, author, time FROM (
+                SELECT owner, projectname, githash, author, time,
+                       ROW_NUMBER() OVER (PARTITION BY owner, projectname ORDER BY time DESC) AS rn
+                FROM githashdb WHERE owner = ?
+            ) WHERE rn = 1
+            ORDER BY time DESC
+            LIMIT ? OFFSET ?
+            """,
+            (owner, limit, offset)
+        )
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+
+    def count_commits(self, owner: str, projectname: str) -> int:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT COUNT(*) FROM githashdb WHERE owner = ? AND projectname = ?",
+            (owner, projectname)
+        )
+        total = cursor.fetchone()[0]
+        conn.close()
+        return total
+
+    def list_commits(self, owner: str, projectname: str, offset: int, limit: int) -> List[Dict[str, Any]]:
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT githash, projectname, owner, author, filehashmap, projectfile, time
+            FROM githashdb
+            WHERE owner = ? AND projectname = ?
+            ORDER BY time DESC
+            LIMIT ? OFFSET ?
+            """,
+            (owner, projectname, limit, offset)
+        )
+        rows = cursor.fetchall()
+        releases = self._rows_to_releases(rows)
+        conn.close()
+        return releases
 
 
 if __name__ == "__main__":

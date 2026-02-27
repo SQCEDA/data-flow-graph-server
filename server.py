@@ -229,6 +229,17 @@ def listCommits(owner, projectname):
     except Exception as e:
         return {'ret':c.error_format,'error':str(e)}
 
+@app.route('/api/projects/<owner>/<projectname>/<githash>', methods=['GET'])
+def getCommit(owner, projectname, githash):
+    try:
+        releases = c.db.find_exact_match(githash, projectname, owner)
+        if not releases:
+            abort(404)
+        # return the first match while still reporting duplicates count if any
+        return {'ret':'', 'release': releases[0], 'total': len(releases)}
+    except Exception as e:
+        return {'ret':c.error_format,'error':str(e)}
+
 @app.route('/raw/<owner>/<projectname>/<githash>/<path:filepath>', methods=['GET'])
 def serveRaw(owner, projectname, githash, filepath):
     try:

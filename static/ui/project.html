@@ -6,6 +6,7 @@
   <title>Flow Graph | 项目详情</title>
   <link rel="stylesheet" href="../style.css">
   <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./project.css">
 </head>
 <body>
   <header class="topbar">
@@ -18,67 +19,62 @@
   </header>
 
   <main class="main-shell">
+    <!-- 基本信息 -->
     <section class="section">
       <div class="section-title">项目详情</div>
       <div id="detailCard" class="card detail-card"></div>
       <div id="detailMsg" class="hint"></div>
-      <div class="section-subtitle">节点预览（可配置为可访问的 node UI）</div>
+    </section>
+
+    <!-- 节点预览 iframe -->
+    <section class="section">
+      <div class="section-title">节点预览</div>
       <div class="iframe-box">
         <iframe id="preview" title="Flow Graph Preview" src="" loading="lazy"></iframe>
       </div>
     </section>
+
+    <!-- filehashmap 文件列表 -->
+    <section class="section">
+      <div class="section-title">文件列表（filehashmap）</div>
+      <div id="filehashSection"></div>
+    </section>
+
+    <!-- projectfile 展开/折叠 -->
+    <section class="section">
+      <div class="section-title">工程文件（projectfile）</div>
+      <div id="projectfileSection"></div>
+    </section>
   </main>
 
+  <!-- 大段文本弹框 -->
+  <div class="text-modal" id="textModal">
+    <div class="text-modal-dialog">
+      <div class="text-modal-header">
+        <span class="text-modal-title" id="modalTitle"></span>
+        <button class="text-modal-close" id="modalClose">&times;</button>
+      </div>
+      <div class="text-modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
   <script src="./common.js"></script>
+  <script src="./project-detail.js"></script>
   <script>
-    (function() {
-      const owner = FG.qs('o');
-      const project = FG.qs('p');
-      const githash = FG.qs('g');
-      const detailCard = document.getElementById('detailCard');
-      const detailMsg = document.getElementById('detailMsg');
-      const preview = document.getElementById('preview');
-
-      function missingParams() {
-        detailCard.innerHTML = '';
-        detailMsg.textContent = '缺少参数 o/p/g，无法展示详情。';
-      }
-
-      async function loadDetail() {
-        if (!owner || !project || !githash) {
-          missingParams();
-          return;
-        }
-        detailMsg.textContent = '加载中...';
-        detailCard.innerHTML = '';
-        const url = `${FG.API_BASE}/projects/${encodeURIComponent(owner)}/${encodeURIComponent(project)}/${encodeURIComponent(githash)}`;
-        try {
-          const data = await FG.fetchJSON(url);
-          if (data.ret && data.ret !== '') throw new Error(data.ret);
-          const r = data.release;
-          if (!r) throw new Error('未找到对应 release');
-          const fileCount = r.filehashmap ? Object.keys(r.filehashmap).length : 0;
-          detailCard.innerHTML = `
-            <div class="card-title">${FG.text(r.projectname)}</div>
-            <div class="detail-row"><span class="detail-key">Owner:</span>${FG.text(r.owner)}</div>
-            <div class="detail-row"><span class="detail-key">Githash:</span>${FG.text(r.githash)}</div>
-            <div class="detail-row"><span class="detail-key">Author:</span>${FG.text(r.author)}</div>
-            <div class="detail-row"><span class="detail-key">Time:</span>${FG.text(r.time)}</div>
-            <div class="detail-row"><span class="detail-key">Files:</span>${fileCount}</div>
-            <button class="btn" id="toCommits">查看提交历史</button>
-          `;
-          document.getElementById('toCommits').addEventListener('click', () => {
-            location.href = FG.linkTo('/ui/commits.html', { o: r.owner, p: r.projectname });
-          });
-          detailMsg.textContent = '';
-          preview.src = '../data-flow-graph-node/board/index.html';
-        } catch (e) {
-          detailMsg.textContent = `加载失败: ${e.message}`;
-        }
-      }
-
-      loadDetail();
-    })();
+    ProjectDetail.init({
+      owner: FG.qs('o'),
+      project: FG.qs('p'),
+      githash: FG.qs('g'),
+      $detailCard: document.getElementById('detailCard'),
+      $detailMsg: document.getElementById('detailMsg'),
+      $preview: document.getElementById('preview'),
+      $filehashSection: document.getElementById('filehashSection'),
+      $projectfileSection: document.getElementById('projectfileSection'),
+      $modal: document.getElementById('textModal'),
+      $modalTitle: document.getElementById('modalTitle'),
+      $modalBody: document.getElementById('modalBody'),
+      $modalClose: document.getElementById('modalClose'),
+    });
   </script>
 </body>
 </html>

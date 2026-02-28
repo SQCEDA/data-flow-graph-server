@@ -1,0 +1,189 @@
+/* project.html 专用样式 */
+
+/* ─── filehashmap 表格 ─── */
+.fhm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.fhm-table thead {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.fhm-table th,
+.fhm-table td {
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: #dcdcdc;
+}
+
+.fhm-table th {
+  color: #fff;
+  font-weight: 700;
+}
+
+.fhm-path {
+  max-width: 340px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fhm-hash {
+  font-family: Consolas, monospace;
+  color: #9cdcfe;
+}
+
+.fhm-ops {
+  white-space: nowrap;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn-sm {
+  padding: 3px 8px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+/* ─── projectfile 展开/折叠树 ─── */
+.pf-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pf-node {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.pf-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.04);
+  transition: background 0.15s;
+}
+
+.pf-header:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.pf-arrow {
+  font-size: 10px;
+  color: #9cdcfe;
+  min-width: 12px;
+}
+
+.pf-key {
+  font-weight: 700;
+  color: #ce9178;
+}
+
+.pf-preview {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: #888;
+}
+
+.pf-body {
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.pf-json {
+  max-height: 260px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #d4d4d4;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.pf-expand-btn {
+  margin-top: 6px;
+}
+
+/* ─── 大段文本弹框 ─── */
+.text-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.6);
+  align-items: center;
+  justify-content: center;
+}
+
+.text-modal.show {
+  display: flex;
+}
+
+.text-modal-dialog {
+  background: #1e1e2e;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  width: 90%;
+  max-width: 860px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.text-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.text-modal-title {
+  font-weight: 700;
+  color: #fff;
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-modal-close {
+  background: none;
+  border: none;
+  color: #b9b9b9;
+  font-size: 22px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.text-modal-close:hover {
+  color: #fff;
+}
+
+.text-modal-body {
+  padding: 16px;
+  overflow: auto;
+  flex: 1;
+}
+
+.modal-pre {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #d4d4d4;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+}

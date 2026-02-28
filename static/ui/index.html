@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flow Graph | 首页</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Flow Graph Server</div>
+    <nav class="nav">
+      <a class="nav-link active" data-target="home" href="/ui/index.html">主页</a>
+      <a class="nav-link" data-target="explore" href="/ui/explore.html">探索</a>
+      <a class="nav-link" data-target="owners" href="/ui/owners.html">组织</a>
+    </nav>
+  </header>
+  <main class="main-shell">
+    <section class="section">
+      <div class="section-title">浏览发布</div>
+      <div class="card-grid">
+        <div class="card link-card" onclick="location.href='/ui/explore.html'">
+          <div class="card-title">探索项目</div>
+          <p>按时间倒序查看最新发布，支持分页浏览。</p>
+        </div>
+        <div class="card link-card" onclick="location.href='/ui/owners.html'">
+          <div class="card-title">按组织浏览</div>
+          <p>先选 owner，再查看其项目最新发布。</p>
+        </div>
+        <div class="card">
+          <div class="card-title">接口说明</div>
+          <p>数据来源：`/api/projects`、`/api/owners`、`/api/owners/<owner>/projects`、`/api/projects/<owner>/<projectname>/<githash>`、`/api/projects/<owner>/<projectname>/commits`。</p>
+        </div>
+      </div>
+    </section>
+    <section class="section">
+      <div class="section-title">提示</div>
+      <ul class="text">
+        <li>若页面加载失败，请检查后端服务是否运行。</li>
+        <li>项目详情页提供提交历史链接，方便追溯。</li>
+      </ul>
+    </section>
+  </main>
+  <script src="./common.js"></script>
+  <script>FG.setNavActive('home');</script>
+</body>
+</html>

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flow Graph | 组织</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Flow Graph Server</div>
+    <nav class="nav">
+      <a class="nav-link" data-target="home" href="/ui/index.html">主页</a>
+      <a class="nav-link" data-target="explore" href="/ui/explore.html">探索</a>
+      <a class="nav-link active" data-target="owners" href="/ui/owners.html">组织</a>
+    </nav>
+  </header>
+
+  <main class="main-shell">
+    <section class="section">
+      <div class="section-title">选择组织</div>
+      <div class="header-row">
+        <div class="text">Owner 列表</div>
+        <div class="spacer"></div>
+        <button class="btn" id="refreshBtn">刷新</button>
+      </div>
+      <div id="ownerList" class="tag-list"></div>
+      <div id="ownerMsg" class="hint"></div>
+    </section>
+
+    <section class="section">
+      <div class="section-title" id="projectsTitle">所属项目</div>
+      <div class="toolbar-row">
+        <form class="form-inline" id="projectFilterForm">
+          <input class="input" id="projectFilterInput" name="project" placeholder="按项目名过滤（前端过滤）">
+          <input class="input" id="sizeInput" name="size" type="number" min="1" max="50" value="8" style="width:100px">
+          <button class="btn" type="submit">应用</button>
+        </form>
+        <div class="spacer"></div>
+        <button class="btn" id="prevBtn">上一页</button>
+        <div id="pageInfo" class="text small"></div>
+        <button class="btn" id="nextBtn">下一页</button>
+      </div>
+      <div id="projectList" class="card-grid"></div>
+      <div id="projectMsg" class="hint"></div>
+    </section>
+  </main>
+
+  <script src="./common.js"></script>
+  <script>
+    (function() {
+      FG.setNavActive('owners');
+      const ownerParam = FG.qs('owner') || '';
+      const page = FG.qsi('page', 1);
+      const size = FG.qsi('size', 8);
+      const projectFilter = FG.qs('project') || '';
+
+      const ownerListEl = document.getElementById('ownerList');
+      const ownerMsgEl = document.getElementById('ownerMsg');
+      const projectsTitle = document.getElementById('projectsTitle');
+      const projectListEl = document.getElementById('projectList');
+      const projectMsgEl = document.getElementById('projectMsg');
+      const pageInfo = document.getElementById('pageInfo');
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      const projectFilterInput = document.getElementById('projectFilterInput');
+      const sizeInput = document.getElementById('sizeInput');
+      projectFilterInput.value = projectFilter;
+      sizeInput.value = size;
+
+      let owners = [];
+
+      function renderOwners() {
+        ownerListEl.innerHTML = '';
+        if (!owners.length) {
+          ownerMsgEl.textContent = '暂无 owner 数据';
+          return;
+        }
+        ownerMsgEl.textContent = '';
+        owners.forEach(o => {
+          const tag = document.createElement('div');
+          tag.className = 'tag';
+          tag.textContent = o;
+          if (o === ownerParam) tag.classList.add('active');
+          tag.addEventListener('click', () => {
+            location.href = FG.linkTo('/ui/owners.html', { owner: o, page: 1, size, project: projectFilter || undefined });
+          });
+          ownerListEl.appendChild(tag);
+        });
+      }
+
+      async function loadOwners() {
+        FG.hint(ownerMsgEl, '加载中...');
+        try {
+          const data = await FG.fetchJSON(`${FG.API_BASE}/owners`);
+          if (data.ret && data.ret !== '') throw new Error(data.ret);
+          owners = data.owners || [];
+          renderOwners();
+        } catch (e) {
+          FG.hint(ownerMsgEl, `加载失败: ${e.message}`);
+        }
+      }
+
+      function applyProjectFilter(items) {
+        if (!projectFilter) return items;
+        return items.filter(p => (p.projectname || '').toLowerCase().includes(projectFilter.toLowerCase()));
+      }
+
+      async function loadProjects(owner, curPage) {
+        if (!owner) {
+          FG.hint(projectMsgEl, '请选择 owner');
+          projectListEl.innerHTML = '';
+          return;
+        }
+        FG.hint(projectMsgEl, '加载中...');
+        projectListEl.innerHTML = '';
+        try {
+          const data = await FG.fetchJSON(`${FG.API_BASE}/owners/${encodeURIComponent(owner)}/projects?page=${curPage}&size=${size}`);
+          if (data.ret && data.ret !== '') throw new Error(data.ret);
+          const list = applyProjectFilter(data.projects || []);
+          if (!list.length) {
+            FG.hint(projectMsgEl, '暂无项目（或被过滤）');
+          } else {
+            FG.hint(projectMsgEl, '');
+          }
+          list.forEach(p => {
+            const card = document.createElement('div');
+            card.className = 'card link-card';
+            card.innerHTML = `
+              <div class="card-title">${FG.text(p.projectname)}</div>
+              <div class="detail-row"><span class="detail-key">Owner:</span>${FG.text(p.owner)}</div>
+              <div class="detail-row"><span class="detail-key">Githash:</span>${FG.text(p.githash)}</div>
+              <div class="detail-row"><span class="detail-key">Author:</span>${FG.text(p.author)}</div>
+              <div class="detail-row"><span class="detail-key">Time:</span>${FG.text(p.time)}</div>
+            `;
+            card.addEventListener('click', () => {
+              location.href = FG.linkTo('/ui/project.html', { o: p.owner, p: p.projectname, g: p.githash });
+            });
+            projectListEl.appendChild(card);
+          });
+          const totalPages = Math.max(1, Math.ceil((data.total || 0) / size));
+          pageInfo.textContent = `第 ${curPage} / ${totalPages} 页`;
+          projectsTitle.textContent = `所属项目（${owner}）`;
+          prevBtn.classList.toggle('disabled', curPage <= 1);
+          nextBtn.classList.toggle('disabled', curPage >= totalPages);
+        } catch (e) {
+          FG.hint(projectMsgEl, `加载失败: ${e.message}`);
+        }
+      }
+
+      document.getElementById('refreshBtn').addEventListener('click', loadOwners);
+      document.getElementById('projectFilterForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const params = {
+          owner: ownerParam || undefined,
+          page: 1,
+          size: sizeInput.value || 8,
+          project: projectFilterInput.value || undefined
+        };
+        location.href = FG.linkTo('/ui/owners.html', params);
+      });
+
+      prevBtn.addEventListener('click', () => {
+        if (prevBtn.classList.contains('disabled')) return;
+        const params = { owner: ownerParam || undefined, page: Math.max(1, page - 1), size, project: projectFilter || undefined };
+        location.href = FG.linkTo('/ui/owners.html', params);
+      });
+      nextBtn.addEventListener('click', () => {
+        if (nextBtn.classList.contains('disabled')) return;
+        const params = { owner: ownerParam || undefined, page: page + 1, size, project: projectFilter || undefined };
+        location.href = FG.linkTo('/ui/owners.html', params);
+      });
+
+      loadOwners();
+      loadProjects(ownerParam, page);
+    })();
+  </script>
+</body>
+</html>

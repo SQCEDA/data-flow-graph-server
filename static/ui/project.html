@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flow Graph | 项目详情</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Flow Graph Server</div>
+    <nav class="nav">
+      <a class="nav-link" data-target="home" href="/ui/index.html">主页</a>
+      <a class="nav-link" data-target="explore" href="/ui/explore.html">探索</a>
+      <a class="nav-link" data-target="owners" href="/ui/owners.html">组织</a>
+    </nav>
+  </header>
+
+  <main class="main-shell">
+    <section class="section">
+      <div class="section-title">项目详情</div>
+      <div id="detailCard" class="card detail-card"></div>
+      <div id="detailMsg" class="hint"></div>
+      <div class="section-subtitle">节点预览（可配置为可访问的 node UI）</div>
+      <div class="iframe-box">
+        <iframe id="preview" title="Flow Graph Preview" src="" loading="lazy"></iframe>
+      </div>
+    </section>
+  </main>
+
+  <script src="./common.js"></script>
+  <script>
+    (function() {
+      const owner = FG.qs('o');
+      const project = FG.qs('p');
+      const githash = FG.qs('g');
+      const detailCard = document.getElementById('detailCard');
+      const detailMsg = document.getElementById('detailMsg');
+      const preview = document.getElementById('preview');
+
+      function missingParams() {
+        detailCard.innerHTML = '';
+        detailMsg.textContent = '缺少参数 o/p/g，无法展示详情。';
+      }
+
+      async function loadDetail() {
+        if (!owner || !project || !githash) {
+          missingParams();
+          return;
+        }
+        detailMsg.textContent = '加载中...';
+        detailCard.innerHTML = '';
+        const url = `${FG.API_BASE}/projects/${encodeURIComponent(owner)}/${encodeURIComponent(project)}/${encodeURIComponent(githash)}`;
+        try {
+          const data = await FG.fetchJSON(url);
+          if (data.ret && data.ret !== '') throw new Error(data.ret);
+          const r = data.release;
+          if (!r) throw new Error('未找到对应 release');
+          const fileCount = r.filehashmap ? Object.keys(r.filehashmap).length : 0;
+          detailCard.innerHTML = `
+            <div class="card-title">${FG.text(r.projectname)}</div>
+            <div class="detail-row"><span class="detail-key">Owner:</span>${FG.text(r.owner)}</div>
+            <div class="detail-row"><span class="detail-key">Githash:</span>${FG.text(r.githash)}</div>
+            <div class="detail-row"><span class="detail-key">Author:</span>${FG.text(r.author)}</div>
+            <div class="detail-row"><span class="detail-key">Time:</span>${FG.text(r.time)}</div>
+            <div class="detail-row"><span class="detail-key">Files:</span>${fileCount}</div>
+            <button class="btn" id="toCommits">查看提交历史</button>
+          `;
+          document.getElementById('toCommits').addEventListener('click', () => {
+            location.href = FG.linkTo('/ui/commits.html', { o: r.owner, p: r.projectname });
+          });
+          detailMsg.textContent = '';
+          preview.src = '../data-flow-graph-node/board/index.html';
+        } catch (e) {
+          detailMsg.textContent = `加载失败: ${e.message}`;
+        }
+      }
+
+      loadDetail();
+    })();
+  </script>
+</body>
+</html>

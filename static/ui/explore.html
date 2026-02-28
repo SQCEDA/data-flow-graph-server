@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flow Graph | 探索</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Flow Graph Server</div>
+    <nav class="nav">
+      <a class="nav-link" data-target="home" href="/ui/index.html">主页</a>
+      <a class="nav-link active" data-target="explore" href="/ui/explore.html">探索</a>
+      <a class="nav-link" data-target="owners" href="/ui/owners.html">组织</a>
+    </nav>
+  </header>
+
+  <main class="main-shell">
+    <section class="section">
+      <div class="section-title">探索项目</div>
+      <form class="form-inline" id="filterForm">
+        <input class="input" id="ownerInput" name="owner" placeholder="按 owner 过滤（前端过滤）">
+        <input class="input" id="projectInput" name="project" placeholder="按 project 过滤（前端过滤）">
+        <input class="input" id="sizeInput" name="size" type="number" min="1" max="50" value="8" style="width:100px">
+        <button class="btn" type="submit">应用</button>
+      </form>
+      <div class="toolbar-row">
+        <div class="text">项目列表（按时间倒序）</div>
+        <div class="spacer"></div>
+        <button class="btn" id="prevBtn">上一页</button>
+        <div id="pageInfo" class="text small"></div>
+        <button class="btn" id="nextBtn">下一页</button>
+      </div>
+      <div id="projectList" class="card-grid"></div>
+      <div id="msg" class="hint"></div>
+    </section>
+  </main>
+
+  <script src="./common.js"></script>
+  <script>
+    (function() {
+      FG.setNavActive('explore');
+      const page = FG.qsi('page', 1);
+      const size = FG.qsi('size', 8);
+      const ownerFilter = FG.qs('owner') || '';
+      const projectFilter = FG.qs('project') || '';
+
+      const ownerInput = document.getElementById('ownerInput');
+      const projectInput = document.getElementById('projectInput');
+      const sizeInput = document.getElementById('sizeInput');
+      ownerInput.value = ownerFilter;
+      projectInput.value = projectFilter;
+      sizeInput.value = size;
+
+      const listEl = document.getElementById('projectList');
+      const msgEl = document.getElementById('msg');
+      const pageInfo = document.getElementById('pageInfo');
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+
+      function applyFilters(items) {
+        return items.filter(p => {
+          const okOwner = ownerFilter ? (p.owner || '').toLowerCase().includes(ownerFilter.toLowerCase()) : true;
+          const okProj = projectFilter ? (p.projectname || '').toLowerCase().includes(projectFilter.toLowerCase()) : true;
+          return okOwner && okProj;
+        });
+      }
+
+      async function loadProjects(curPage) {
+        msgEl.textContent = '加载中...';
+        listEl.innerHTML = '';
+        const url = `${FG.API_BASE}/projects?page=${curPage}&size=${size}`;
+        try {
+          const data = await FG.fetchJSON(url);
+          if (data.ret && data.ret !== '') throw new Error(data.ret);
+          const projects = applyFilters(data.projects || []);
+          if (!projects.length) {
+            msgEl.textContent = '暂无数据（或被过滤）';
+          } else {
+            msgEl.textContent = '';
+          }
+          projects.forEach(p => {
+            const card = document.createElement('div');
+            card.className = 'card link-card';
+            card.innerHTML = `
+              <div class="card-title">${FG.text(p.projectname)}</div>
+              <div class="detail-row"><span class="detail-key">Owner:</span>${FG.text(p.owner)}</div>
+              <div class="detail-row"><span class="detail-key">Githash:</span>${FG.text(p.githash)}</div>
+              <div class="detail-row"><span class="detail-key">Author:</span>${FG.text(p.author)}</div>
+              <div class="detail-row"><span class="detail-key">Time:</span>${FG.text(p.time)}</div>
+            `;
+            card.addEventListener('click', () => {
+              location.href = FG.linkTo('/ui/project.html', { o: p.owner, p: p.projectname, g: p.githash });
+            });
+            listEl.appendChild(card);
+          });
+          const totalPages = Math.max(1, Math.ceil((data.total || 0) / size));
+          pageInfo.textContent = `第 ${curPage} / ${totalPages} 页`;
+          prevBtn.classList.toggle('disabled', curPage <= 1);
+          nextBtn.classList.toggle('disabled', curPage >= totalPages);
+        } catch (e) {
+          msgEl.textContent = `加载失败: ${e.message}`;
+        }
+      }
+
+      document.getElementById('filterForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const params = {
+          page: 1,
+          size: sizeInput.value || 8,
+          owner: ownerInput.value || undefined,
+          project: projectInput.value || undefined
+        };
+        location.href = FG.linkTo('/ui/explore.html', params);
+      });
+
+      prevBtn.addEventListener('click', () => {
+        if (prevBtn.classList.contains('disabled')) return;
+        const params = { page: Math.max(1, page - 1), size, owner: ownerFilter || undefined, project: projectFilter || undefined };
+        location.href = FG.linkTo('/ui/explore.html', params);
+      });
+      nextBtn.addEventListener('click', () => {
+        if (nextBtn.classList.contains('disabled')) return;
+        const params = { page: page + 1, size, owner: ownerFilter || undefined, project: projectFilter || undefined };
+        location.href = FG.linkTo('/ui/explore.html', params);
+      });
+
+      loadProjects(page);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flow Graph | 提交历史</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Flow Graph Server</div>
+    <nav class="nav">
+      <a class="nav-link" data-target="home" href="/ui/index.html">主页</a>
+      <a class="nav-link" data-target="explore" href="/ui/explore.html">探索</a>
+      <a class="nav-link" data-target="owners" href="/ui/owners.html">组织</a>
+    </nav>
+  </header>
+
+  <main class="main-shell">
+    <section class="section">
+      <div class="section-title">提交历史</div>
+      <div class="toolbar-row">
+        <div class="text" id="titleText"></div>
+        <div class="spacer"></div>
+        <button class="btn" id="prevBtn">上一页</button>
+        <div id="pageInfo" class="text small"></div>
+        <button class="btn" id="nextBtn">下一页</button>
+      </div>
+      <div id="list" class="card-grid"></div>
+      <div id="msg" class="hint"></div>
+      <div class="toolbar-row" style="margin-top:8px;">
+        <a class="link" id="backDetail" href="#">返回项目详情</a>
+      </div>
+    </section>
+  </main>
+
+  <script src="./common.js"></script>
+  <script>
+    (function() {
+      const owner = FG.qs('o');
+      const project = FG.qs('p');
+      const page = FG.qsi('page', 1);
+      const size = FG.qsi('size', 20);
+      const listEl = document.getElementById('list');
+      const msgEl = document.getElementById('msg');
+      const pageInfo = document.getElementById('pageInfo');
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      const titleText = document.getElementById('titleText');
+      const backDetail = document.getElementById('backDetail');
+
+      backDetail.href = FG.linkTo('/ui/project.html', { o: owner, p: project });
+      titleText.textContent = owner && project ? `${owner} / ${project}` : '缺少参数 o/p';
+
+      async function loadCommits(curPage) {
+        if (!owner || !project) {
+          msgEl.textContent = '缺少参数 o/p，无法加载提交历史。';
+          return;
+        }
+        msgEl.textContent = '加载中...';
+        listEl.innerHTML = '';
+        try {
+          const url = `${FG.API_BASE}/projects/${encodeURIComponent(owner)}/${encodeURIComponent(project)}/commits?page=${curPage}&size=${size}`;
+          const data = await FG.fetchJSON(url);
+          if (data.ret && data.ret !== '') throw new Error(data.ret);
+          const commits = data.commits || [];
+          if (!commits.length) {
+            msgEl.textContent = '暂无提交记录';
+          } else {
+            msgEl.textContent = '';
+          }
+          commits.forEach(c => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+              <div class="card-title">${FG.text(c.githash)}</div>
+              <div class="detail-row"><span class="detail-key">Author:</span>${FG.text(c.author)}</div>
+              <div class="detail-row"><span class="detail-key">Time:</span>${FG.text(c.time)}</div>
+            `;
+            card.addEventListener('click', () => {
+              location.href = FG.linkTo('/ui/project.html', { o: c.owner, p: c.projectname, g: c.githash });
+            });
+            listEl.appendChild(card);
+          });
+          const totalPages = Math.max(1, Math.ceil((data.total || 0) / size));
+          pageInfo.textContent = `第 ${curPage} / ${totalPages} 页`;
+          prevBtn.classList.toggle('disabled', curPage <= 1);
+          nextBtn.classList.toggle('disabled', curPage >= totalPages);
+        } catch (e) {
+          msgEl.textContent = `加载失败: ${e.message}`;
+        }
+      }
+
+      prevBtn.addEventListener('click', () => {
+        if (prevBtn.classList.contains('disabled')) return;
+        location.href = FG.linkTo('/ui/commits.html', { o: owner, p: project, page: Math.max(1, page - 1), size });
+      });
+      nextBtn.addEventListener('click', () => {
+        if (nextBtn.classList.contains('disabled')) return;
+        location.href = FG.linkTo('/ui/commits.html', { o: owner, p: project, page: page + 1, size });
+      });
+
+      loadCommits(page);
+    })();
+  </script>
+</body>
+</html>

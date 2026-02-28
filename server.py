@@ -11,11 +11,17 @@ import mimetypes
 
 import db as db_module
 
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+STATIC_DIR = os.path.join(BASE_DIR, 'static')
+DATA_OBJS_DIR = os.path.join(BASE_DIR, 'data', 'objs')
+DB_PATH = os.path.join(BASE_DIR, 'data', 'data.db')
+
 class c:
     ip='0.0.0.0'
     port=13496
     error_format='error format'
-    db=db_module.DB()
+    db=db_module.DB(DB_PATH)
 
 def p(s):
     print(s)
@@ -37,7 +43,8 @@ def add_header(r):
 
 def is_sub(filename):
     try:
-        return (os.path.realpath(filename) + os.sep).startswith(os.path.realpath('.') + os.sep)
+        base = os.path.realpath(ROOT_DIR)
+        return (os.path.realpath(filename) + os.sep).startswith(base + os.sep)
     except:
         return True
 
@@ -94,14 +101,28 @@ def root():
 
 @app.route('/<path:path>', methods=['GET'])
 def static_file(path):
-    if os.path.isdir(path): 
-        if not path.endswith('/'): path += '/'
-        path += 'index.html'
-    if not os.path.isfile(path):
-        abort(404)
-        return None
-    mimetype = get_mimetype(path)
-    response = Response(get_file(path), mimetype = mimetype)
+    primary_path = os.path.join(STATIC_DIR, path)
+    if os.path.isdir(primary_path):
+        if not primary_path.endswith(os.sep):
+            primary_path = primary_path + os.sep
+        primary_path = os.path.join(primary_path, 'index.html')
+
+    target_path = primary_path
+
+    if not os.path.isfile(target_path):
+        fallback_path = os.path.join(ROOT_DIR, path)
+        if os.path.isdir(fallback_path):
+            if not fallback_path.endswith(os.sep):
+                fallback_path = fallback_path + os.sep
+            fallback_path = os.path.join(fallback_path, 'index.html')
+        if os.path.isfile(fallback_path):
+            target_path = fallback_path
+        else:
+            abort(404)
+            return None
+
+    mimetype = get_mimetype(target_path)
+    response = Response(get_file(target_path), mimetype = mimetype)
     if mimetype.startswith('audio/'): response.headers['Accept-Ranges'] = 'bytes'
     return response
 
@@ -126,7 +147,7 @@ def submitFile():
         for hashk in filehash64Map:
             filehashes.append(hashk)
             filehash64=filehash64Map[hashk]
-            with open(os.path.join('./data/objs/', hashk + '.bin'), 'wb') as f:
+            with open(os.path.join(DATA_OBJS_DIR, hashk + '.bin'), 'wb') as f:
                 f.write(base64.b64decode(filehash64))
         c.db.add_filehash(filehashes)
     except Exception as e:
@@ -142,7 +163,7 @@ def downloadFile():
         filehashes=json.loads(data)
         retmap={}
         for hashk in filehashes:
-            filepath=os.path.join('./data/objs/', hashk + '.bin')
+            filepath=os.path.join(DATA_OBJS_DIR, hashk + '.bin')
             if os.path.isfile(filepath):
                 with open(filepath, 'rb') as f:
                     filebin=f.read()
@@ -251,7 +272,7 @@ def serveRaw(owner, projectname, githash, filepath):
         if filepath not in filehashmap:
             abort(404)
         hashk = filehashmap[filepath]
-        binpath = os.path.join('./data/objs/', hashk + '.bin')
+        binpath = os.path.join(DATA_OBJS_DIR, hashk + '.bin')
         if not os.path.isfile(binpath):
             abort(404)
         content = get_file(binpath)
@@ -264,5 +285,6 @@ def serveRaw(owner, projectname, githash, filepath):
         return {'ret':c.error_format,'error':str(e)}
 
 if __name__ == '__main__':
+    os.chdir(ROOT_DIR)
     p('服务已启动...')
     app.run(host = c.ip, port = c.port, debug = False)
